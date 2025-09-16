@@ -3,9 +3,9 @@
 ##[ init.lua ]##
 The mailbox isn't empty.=Почтовый ящик не пуст.
 You are not allowed to unrent this mailbox.=Вам не позволено отменять аренду этого ящика.
-Free Mailbox, right-click to claim=Бесплатный почтовый ящик, ПКМ чтобы арендовать.
+Free Mailbox, right-click to claim=Свободный почтовый ящик, ПКМ чтобы арендовать.
 @1's Mailbox=Почтовый ящик игрока: @1
-Send your goods@nto @1=Отправить Ваши предметы@nигроку @1
+Send your goods@nto @1=Отправить предметы@nигроку @1
 Manage=Управлять
 Only allow written books=Разрешить отправлять только книги
 Unrent=Отменить аренду
@@ -13,10 +13,10 @@ New owner:=Новый владелец:
 You cannot set owner of mailboxes for others.=Вы не можете устанавливать владельца для чужих почтовых ящиков.
 Only written books are accepted.=Можно отправить только книги.
 Mailbox full.=Почтовый ящик переполнен.
-The node you were working on is no longer a mailbox.=Блок, с которым Вы работали более не является почтовым ящиком.
+The node you were working on is no longer a mailbox.=Блок, с которым Вы работали, более не является почтовым ящиком.
 You can't manage this mailbox.=Вы не можете управлять этим почтовым ящиком.
 Mailbox=Почтовый ящик
-Mailbox for Rent=Почтовый ящик, свободный для аренды
+Mailbox for Rent=Почтовый ящик (свободный)
 Mailbox owner modifier=Модификатор владельца ящика
 Punch: Change owner=Ударить: смена владельца
 Right-click: Move owner out=ПКМ: убрать владельца

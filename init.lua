@@ -435,3 +435,23 @@ minetest.register_craft({
 		{ materials.steel_ingot, materials.steel_ingot, materials.steel_ingot }
 	}
 })
+
+
+minetest.register_lbm({
+    name = "mailbox:update_translation_1",
+    nodenames = {
+        "mailbox:mailbox",
+        "mailbox:mailbox_free"
+    },
+    run_at_every_load = false,
+    action = function(pos, node)
+        local meta = minetest.get_meta(pos)
+        local pname = meta:get_string("owner") or ""
+        if pname == "" then
+            meta:set_string("infotext", S("Free Mailbox, right-click to claim"))
+        else
+            meta:set_string("infotext", S("@1's Mailbox", pname))
+        end
+    end
+})
+
