@@ -28,6 +28,7 @@ _G.mailbox = mailbox
 
 local S = minetest.get_translator("mailbox")
 local FS = function(...) return minetest.formspec_escape(S(...)) end
+local send_or_queue_notification = dofile(minetest.get_modpath("mailbox") .. "/notifications.lua").send_or_queue_notification
 
 local formspec_bg = ""
 local get_hotbar_bg = function() return "" end
@@ -134,8 +135,11 @@ end
 
 local show_manage_formspec = function(pos, pname, selected)
     local spos = pos.x .. "," .. pos.y .. "," .. pos.z
+    local meta = minetest.get_meta(pos)
+    local notifications_enabled = minetest.is_yes(meta:get_string("notify")) and "true" or "false"
     local formspec = "size[8,9.5]" .. formspec_bg .. get_hotbar_bg(0, 5.5) ..
-		"checkbox[0,0;books_only;" .. FS("Only allow written books") .. ";" .. selected .. "]" ..
+		"checkbox[0,-0.2;books_only;" .. FS("Only allow written books") .. ";" .. selected .. "]" ..
+		"checkbox[0,0.2;notify;Notifications" .. ";" .. notifications_enabled .. "]" ..
 		"list[nodemeta:" .. spos .. ";mailbox;0,1;8,4;]" ..
 		"list[current_player;main;0,5.5;8,1;]" ..
 		"list[current_player;main;0,6.75;8,3;8]" ..
@@ -241,6 +245,8 @@ local on_metadata_inventory_put = function(pos, listname, _, stack)
         local meta = minetest.get_meta(pos)
 		local inv = meta:get_inventory()
         inv:set_stack("drop", 1, inv:add_item("mailbox", stack))
+        local owner = meta:get_string("owner")
+        send_or_queue_notification(owner, pos)
 	end
 end
 
@@ -270,6 +276,8 @@ if minetest.global_exists("pipeworks") then
     mail_pipeworks = {
 		insert_object = function(pos, _, stack, _)
 			local meta = minetest.get_meta(pos)
+			local owner = meta:get_string("owner")
+			send_or_queue_notification(owner, pos)
 			local inv = meta:get_inventory()
 			return inv:add_item("mailbox", stack)
 		end,
@@ -328,7 +336,14 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         end
         local selected = node.name == "mailbox:letterbox" and "true" or "false"
         show_manage_formspec(pos, pname, selected)
-	end
+	elseif fields.notify then
+        if not can_manage(pos, player) then
+            minetest.chat_send_player(pname, S("You can't manage this mailbox."))
+            return true
+        end
+        local meta = minetest.get_meta(pos)
+        meta:set_string("notify", fields.notify)
+    end
     return true
 end)
 
