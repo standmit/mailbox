@@ -29,6 +29,11 @@ _G.mailbox = mailbox
 local S = minetest.get_translator("mailbox")
 local FS = function(...) return minetest.formspec_escape(S(...)) end
 
+-- Max. length of the list of givers in mailbox formspec
+local GIVER_LIST_LENGTH = 7
+
+local anonymity = {}
+
 local formspec_bg = ""
 local get_hotbar_bg = function() return "" end
 if minetest.global_exists("default") then
@@ -81,6 +86,14 @@ function mailbox.rent_mailbox(pos, player)
     return mailbox.set_owner(pos, player:get_player_name())
 end
 
+function mailbox.clear_history(pos)
+    local meta = minetest.get_meta(pos)
+    for i = 1, GIVER_LIST_LENGTH do
+        meta:set_string("giver" .. i, "")
+        meta:set_string("stack" .. i, "")
+    end
+end
+
 function mailbox.unrent(pos, player, force, drop_pos)
     local meta = minetest.get_meta(pos)
     if not can_manage(pos, player) then
@@ -101,6 +114,7 @@ function mailbox.unrent(pos, player, force, drop_pos)
 
     inv:set_list("mailbox", {})
     mailbox.set_owner(pos, "")
+    mailbox.clear_history(pos)
 
     return true
 end
@@ -108,7 +122,7 @@ end
 local on_construct = function(pos)
 	local meta = minetest.get_meta(pos)
 	local inv = meta:get_inventory()
-	inv:set_size("mailbox", 8 * 4)
+	inv:set_size("mailbox", 6 * 4)
 	inv:set_size("drop", 1)
 end
 
@@ -127,20 +141,82 @@ local show_formspec = function(pos, owner, pname, pl_can_manage)
         "listring[nodemeta:" .. spos .. ";drop]" ..
         "listring[current_player;main]"
     if pl_can_manage then
-        formspec = formspec .. "button_exit[6,0;2,1;manage;" .. FS("Manage") .. "]"
+        formspec = formspec ..
+            "checkbox[5,0.6;anon;" .. FS("Send anonymously") .. ";false]" ..
+            "button_exit[5,-0.1;3,1;manage;" .. FS("Manage") .. "]"
+    else
+        formspec = formspec ..
+            "checkbox[5,0;anon;" .. FS("Send anonymously") .. ";false]"
     end
     minetest.show_formspec(pname, "mailbox:mailbox_" .. spos, formspec)
 end
 
+local function get_img(img)
+	if not img then return end
+	local img_name = img:match("(.*)%.png")
+
+	if img_name then
+		return img_name .. ".png"
+	end
+end
+
+local function img_col(stack)
+	local def = minetest.registered_items[stack]
+	if not def then
+		return ""
+	end
+
+	if def.inventory_image ~= "" then
+		local img = get_img(def.inventory_image)
+		if img then
+			return img
+		end
+	end
+
+	if def.tiles then
+		local tile, img = def.tiles[1]
+		if type(tile) == "table" then
+			img = get_img(tile.name)
+		elseif type(tile) == "string" then
+			img = get_img(tile)
+		end
+
+		if img then
+			return img
+		end
+	end
+
+	return ""
+end
+
 local show_manage_formspec = function(pos, pname, selected)
     local spos = pos.x .. "," .. pos.y .. "," .. pos.z
+    local meta = minetest.get_meta(pos)
+    local givers = ""
+    local imgs = ""
+    for i = 1, GIVER_LIST_LENGTH do
+        local giver = meta:get_string("giver" .. i) or ""
+        if giver ~= "" then
+            local giver_name = giver:sub(1,12)
+            local stack = meta:get_string("stack" .. i)
+            local stack_name = stack:match("[%w_:]+")
+            local stack_count = stack:match("%s(%d+)") or 1
+            givers = givers .. "#FFFF00," .. giver_name .. "," .. i .. ",#FFFFFF," .. FS("× @1", stack_count) .. ","
+            imgs = imgs .. i .. "=" .. img_col(stack_name) .. "^\\[resize:16x16,"
+        end
+    end
+
     local formspec = "size[8,9.5]" .. formspec_bg .. get_hotbar_bg(0, 5.5) ..
 		"checkbox[0,0;books_only;" .. FS("Only allow written books") .. ";" .. selected .. "]" ..
-		"list[nodemeta:" .. spos .. ";mailbox;0,1;8,4;]" ..
+		"list[nodemeta:" .. spos .. ";mailbox;0,1;6,4;]" ..
 		"list[current_player;main;0,5.5;8,1;]" ..
 		"list[current_player;main;0,6.75;8,3;8]" ..
 		"listring[nodemeta:" .. spos .. ";mailbox]" ..
 		"listring[current_player;main]" ..
+		"label[6,0.85;" .. FS("Last donators") .. "]" ..
+		"tablecolumns[color;text;image," .. imgs .. "0;color;text]" ..
+		"table[6,1.3;1.8,2.57;givers;" .. givers .. "]" ..
+		"button[6,4;2,1;clear;" .. FS("Clear log") .. "]" ..
 		"button_exit[5,0;2,1;unrent;" .. FS("Unrent") .. "]" ..
 		"button_exit[7,0;1,1;exit;X]"
     minetest.show_formspec(pname, "mailbox:mailbox_" .. spos, formspec)
@@ -236,11 +312,20 @@ local allow_metadata_inventory_put = function(pos, listname, _, stack, player)
     return 0
 end
 
-local on_metadata_inventory_put = function(pos, listname, _, stack)
+local on_metadata_inventory_put = function(pos, listname, _, stack, player)
 	if listname == "drop" then
         local meta = minetest.get_meta(pos)
 		local inv = meta:get_inventory()
         inv:set_stack("drop", 1, inv:add_item("mailbox", stack))
+
+        for i = GIVER_LIST_LENGTH, 2, -1 do
+            meta:set_string("giver" .. i, meta:get_string("giver" .. (i - 1)))
+            meta:set_string("stack" .. i, meta:get_string("stack" .. (i - 1)))
+        end
+
+        local pname = player:get_player_name()
+        meta:set_string("giver1", anonymity[pname] and "…" or pname)
+        meta:set_string("stack1", stack:to_string())
 	end
 end
 
@@ -326,6 +411,18 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
             minetest.chat_send_player(pname, S("You can't manage this mailbox."))
             return true
         end
+        local selected = node.name == "mailbox:letterbox" and "true" or "false"
+        show_manage_formspec(pos, pname, selected)
+    elseif fields.anon then
+        anonymity[pname] = (fields.anon == "true")
+    elseif fields.quit then
+        anonymity[pname] = nil
+    elseif fields.clear then
+        if not can_manage(pos, player) then
+            minetest.chat_send_player(pname, S("You can't manage this mailbox."))
+            return true
+        end
+        mailbox.clear_history(pos)
         local selected = node.name == "mailbox:letterbox" and "true" or "false"
         show_manage_formspec(pos, pname, selected)
 	end

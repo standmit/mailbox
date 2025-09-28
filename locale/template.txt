@@ -20,3 +20,7 @@ Mailbox for Rent=
 Mailbox owner modifier=
 Punch: Change owner=
 Right-click: Move owner out=
+Last donators=
+Send anonymously=
+× @1=
+Clear log=
